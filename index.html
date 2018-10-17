@@ -14,6 +14,7 @@
         const LOW_POSITION = 5;
         const DATE_POSITION = 0;
         const HOUR_POSITION = 1;
+        const MAX_BARS = 100;
 
         retrieveData('http://localhost:8000/data.csv');
 
@@ -41,7 +42,8 @@
                     "datasets":[{
                         "data": plots, 
                         "fill": false, 
-                        "lineTension": 0
+                        "lineTension": 0,
+                        "borderColor":"rgb(95, 186, 125)"
                     }],
                     "labels": labels
                 },
@@ -49,6 +51,11 @@
                     legend: {
                         display: false
                     },
+                    scales: {
+                        xAxes: [{
+                            display: false
+                        }]
+                    }
                 },
             }
 
@@ -60,7 +67,8 @@
 
             for (let i = 0; i < rawData.length; i += TIMEFRAME) {
                 let subset = rawData.slice(i, i + TIMEFRAME);
-                if (subset.length != 60) {break;}
+                if (subset.length != 60 || (i/TIMEFRAME) > MAX_BARS) {break;}
+                
                 let highs = subset.map(function(element) {
                     return element[HIGH_POSITION];
                 });
