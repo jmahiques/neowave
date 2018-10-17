@@ -9,24 +9,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/4.6.1/papaparse.min.js"></script>
     <script type="text/javascript">
-        let rawData = retrieveData('http://localhost:8000/data.csv');
-        const timeframe = 60; //1h = 60 bars of 1min
-        const data = [10,12,15,17,13];
-        let i = 1;
+        const TIMEFRAME = 60; //1h = 60 bars of 1min
+        const HIGH_POSITION = 3;
+        const LOW_POSITION = 5;
+        const DATE_POSITION = 0;
+        const HOUR_POSITION = 1;
 
-        plotChart(
-            data,
-            data.map(function(){
-                return i++;
-            })
-        );
+        retrieveData('http://localhost:8000/data.csv');
 
+        //FORMAT CSV: Date,Hour,Open,High,Close,Low
         function retrieveData(url) {
             Papa.parse(url, {
                 download: true,
+                dynamicTyping: true,
+                //TODO refactor with promises
                 complete: function(results){
                     console.log(results.data.length);
-                    rawData = results.data;
+                    let plotData = generatePlotData(results.data);
+                    plotChart(
+                        getPlotPrices(plotData),
+                        getPlotLabels(plotData)
+                    );
                 }
             });
         }
@@ -50,6 +53,52 @@
             }
 
             new Chart(document.getElementById('chart'), config);
+        }
+
+        function generatePlotData(rawData) {
+            let plotData = [];
+
+            for (let i = 0; i < rawData.length; i += TIMEFRAME) {
+                let subset = rawData.slice(i, i + TIMEFRAME);
+                if (subset.length != 60) {break;}
+                let highs = subset.map(function(element) {
+                    return element[HIGH_POSITION];
+                });
+                let lows = subset.map(function(element) {
+                    return element[LOW_POSITION];
+                });
+                let highestHigh = Math.max.apply(Math, highs);
+                let lowestLow = Math.min.apply(Math, lows);
+                let highPosition = highs.indexOf(highestHigh);
+                let lowPosition = lows.indexOf(lowestLow);
+                
+                if (highPosition > lowPosition) {
+                    plotData.push({date: mergeDateAndTime(subset[highPosition][DATE_POSITION], subset[highPosition][HOUR_POSITION]), price: highestHigh});
+                    plotData.push({date: mergeDateAndTime(subset[lowPosition][DATE_POSITION], subset[lowPosition][HOUR_POSITION]), price: lowestLow});
+                } else {
+                    plotData.push({date: mergeDateAndTime(subset[lowPosition][DATE_POSITION], subset[lowPosition][HOUR_POSITION]), price: lowestLow});
+                    plotData.push({date: mergeDateAndTime(subset[highPosition][DATE_POSITION], subset[highPosition][HOUR_POSITION]), price: highestHigh});
+                }
+            }
+
+            return plotData;
+        }
+
+        function getPlotPrices(plotData) {
+            return plotData.map(function (element) {
+                return element.price;
+            });
+        }
+
+        function getPlotLabels(plotData) {
+            let i = 0;
+            return plotData.map(function(){
+                return i++;
+            });
+        }
+
+        function mergeDateAndTime(date, hour) {
+            return date.concat(' ').concat(hour);
         }
     </script>
 </body>
